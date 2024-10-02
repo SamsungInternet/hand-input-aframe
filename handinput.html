@@ -3,12 +3,13 @@
 
 <head>
     <title>Hand Input Module in A-Frame</title>
-     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.0/dist/aframe-extras.min.js"></script>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.0/dist/aframe-extras.min.js"></script>
 </head>
 
 <body>
     <a-scene xr-mode-ui="enabled: true; enterAREnabled: true; XRMode: ar;" webxr="optionalFeatures: hand-tracking">
+        <a-box id="box" width="0.2" height="0.2" depth="0.2" position="0 1.2 -0.4" color="green"></a-box>
         <a-entity hand-skeleton></a-entity>
     </a-scene>
 
@@ -21,11 +22,30 @@
             ["pinky-finger-metacarpal", "pinky-finger-phalanx-proximal", "pinky-finger-phalanx-intermediate", "pinky-finger-phalanx-distal", "pinky-finger-tip"]
         ];
 
+        const minimumDistance = 0.1;
+
+        function calculateDistance(point1, point2) {
+            return Math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2 + (point1.z - point2.z) ** 2);
+        }
+
+        function updateBoxColour(box, rightHandClose, leftHandClose) {
+            if (rightHandClose) {
+                box.setAttribute('color', 'red');
+            } else if (leftHandClose) {
+                box.setAttribute('color', 'blue');
+            } else {
+                box.setAttribute('color', 'green');
+            }
+        }
+
         AFRAME.registerComponent('hand-skeleton', {
             init: function () {
                 this.referenceSpace = null;
                 this.frame = null;
-                this.spheres = {}; // store spheres for each joint
+                this.spheres = {};
+                this.box = document.getElementById('box');
+                this.rightHandClose = false;
+                this.leftHandClose = false;
             },
 
             tick: function () {
@@ -34,12 +54,12 @@
                     this.referenceSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
                 } else {
                     this.renderHandSkeleton();
-                    // add interaction
+                    this.checkInteraction();
                     // perform gesture detection
                 }
             },
 
-            renderHandSkeleton: function() {
+            renderHandSkeleton: function () {
                 const session = this.el.sceneEl.renderer.xr.getSession();
                 const inputSources = session.inputSources;
                 if (!this.frame || !this.referenceSpace) {
@@ -54,11 +74,13 @@
                                 const joint = hand.get(jointName);
                                 if (joint) {
                                     const jointPose = this.frame.getJointPose(joint, this.referenceSpace);
-                                    const position = jointPose.transform.position;
-                                    if (!this.spheres[handedness + '_' + jointName]) {
-                                        this.spheres[handedness + '_' + jointName] = this.drawSphere(jointPose.radius, position);
-                                    } else {
-                                        this.spheres[handedness + '_' + jointName].object3D.position.set(position.x, position.y, position.z);
+                                    if (jointPose != null) {
+                                        const position = jointPose.transform.position;
+                                        if (!this.spheres[handedness + '_' + jointName]) {
+                                            this.spheres[handedness + '_' + jointName] = this.drawSphere(jointPose.radius, position);
+                                        } else {
+                                            this.spheres[handedness + '_' + jointName].object3D.position.set(position.x, position.y, position.z);
+                                        }
                                     }
                                 }
                             }
@@ -67,20 +89,47 @@
                 }
             },
 
+            checkInteraction: function () {
+                let rightHandClose = false;
+                let leftHandClose = false;
+
+                for (const jointName in this.spheres) {
+                    const jointSphere = this.spheres[jointName];
+                    const jointPosition = jointSphere.object3D.position;
+                    const distance = calculateDistance(jointPosition, this.box.object3D.position);
+
+                    if (distance < minimumDistance) {
+                        if (jointName.startsWith('right')) {
+                            rightHandClose = true;
+                        }
+                        if (jointName.startsWith('left')) {
+                            leftHandClose = true;
+                        }
+                    }
+                }
+
+                if (rightHandClose !== this.rightHandClose || leftHandClose !== this.leftHandClose) {
+                    updateBoxColour(this.box, rightHandClose, leftHandClose);
+                }
+
+                this.rightHandClose = rightHandClose;
+                this.leftHandClose = leftHandClose;
+            },
+
+            drawSphere: function (radius, position) {
+                const sphere = document.createElement('a-sphere');
+                sphere.setAttribute('radius', radius);
+                sphere.setAttribute('color', '#4d5cc1');
+                sphere.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+                this.el.appendChild(sphere);
+                return sphere;
+            },
+
             remove: function () {
                 // clean up rendered spheres
                 for (const jointName in this.spheres) {
                     this.spheres[jointName].parentNode.removeChild(this.spheres[jointName]);
                 }
-            },
-
-            drawSphere: function(radius, position) {
-                const sphere = document.createElement('a-sphere');
-                sphere.setAttribute('radius', radius);
-                sphere.setAttribute('color', 'red');
-                sphere.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-                this.el.appendChild(sphere);
-                return sphere;
             },
         });
     </script>

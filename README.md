@@ -5,7 +5,7 @@ This is an A-Frame demo of the [Hand Input Module](https://www.w3.org/TR/webxr-h
 The three part blog series explores the following:
 
 - [Part 1: accessing the API and rendering hand skeletons](https://medium.com/samsung-internet-dev/how-to-use-the-hand-input-module-in-a-frame-part-1-e836c83fdc5e)
-- Part 2: adding simple interactions *(blog post out soon)*
+- [Part 2: adding simple interactions](https://medium.com/samsung-internet-dev/how-to-use-the-hand-input-module-in-a-frame-part-2-a5d26e2de37a)
 - Part 3: performing gesture detection *(blog post out soon)*
 
 ## Notes
